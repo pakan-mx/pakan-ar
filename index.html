@@ -1,66 +1,59 @@
 <!DOCTYPE html>
-<html lang="es">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Retrato Mágico - Pakan</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Retrato Mágico Pakan</title>
+    <!-- Librerías necesarias (Three.js y MindAR) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.150.0/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image-three.prod.js"></script>
     <style>
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            background-color: #000;
-            overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        video {
-            width: 100%;
-            height: 100%;
-            object-fit: contain; /* Ajusta el video sin cortarlo */
-        }
-        #playBtn {
-            position: absolute;
-            padding: 15px 30px;
-            font-size: 20px;
-            background: rgba(255, 255, 255, 0.9);
-            border: none;
-            border-radius: 50px;
-            cursor: pointer;
-            z-index: 10;
-            font-family: Arial, sans-serif;
-            font-weight: bold;
-        }
+        body { margin: 0; overflow: hidden; background-color: #000; }
+        #overlay { position: absolute; top: 10px; left: 0; width: 100%; text-align: center; color: white; font-family: sans-serif; z-index: 10; pointer-events: none;}
     </style>
 </head>
 <body>
-
-    <!-- Botón para iniciar (los navegadores requieren un clic para reproducir video) -->
-    <button id="playBtn">▶ Ver Retrato Mágico</button>
-
-    <!-- Tu video -->
-    <video id="miVideo" loop playsinline>
-        <source src="video-magico.mp4" type="video/mp4">
-        Tu navegador no soporta videos.
-    </video>
+    <div id="overlay">Apunta la cámara al retrato</div>
 
     <script>
-        const video = document.getElementById('miVideo');
-        const btn = document.getElementById('playBtn');
+        const start = async () => {
+            // 1. Iniciar MindAR
+            const mindarThree = new window.MINDAR.IMAGE.MindARThree({
+                container: document.body,
+                imageTargetSrc: './targets.mind', // Aquí llama al Target
+                uiScanning: '#overlay',
+            });
 
-        btn.addEventListener('click', () => {
-            video.play();
-            btn.style.display = 'none'; // Oculta el botón al reproducir
-        });
+            const { renderer, scene, camera } = mindarThree;
 
-        // Si el video termina, reinicia (por si acaso el loop falla)
-        video.addEventListener('ended', () => {
-            video.currentTime = 0;
-            video.play();
-        });
+            // 2. Preparar el Video
+            const video = document.createElement('video');
+            video.src = './video-magico.mp4'; // Aquí llama a tu video
+            video.loop = true;
+            video.muted = true; // Necesario para que autoplay funcione en móviles
+            video.playsInline = true;
+            video.crossOrigin = "anonymous";
+            await video.play();
+
+            const texture = new THREE.VideoTexture(video);
+            const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: 0.9 });
+            
+            // Ajusta el tamaño del video (ancho, alto) según la forma de tu retrato
+            const geometry = new THREE.PlaneGeometry(1, 1.33); 
+            const plane = new THREE.Mesh(geometry, material);
+            plane.position.set(0, 0, 0);
+
+            // 3. Unir el video al Target (posición 0)
+            const anchor = mindarThree.addAnchor(0);
+            anchor.group.add(plane);
+
+            // 4. Iniciar la cámara
+            await mindarThree.start();
+            renderer.setAnimationLoop(() => {
+                renderer.render(scene, camera);
+            });
+        };
+
+        window.addEventListener('load', start);
     </script>
-
 </body>
 </html>
