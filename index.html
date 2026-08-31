@@ -3,57 +3,138 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Retrato Mágico Pakan</title>
-    <!-- Librerías necesarias (Three.js y MindAR) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.150.0/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image-three.prod.js"></script>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #000; }
-        #overlay { position: absolute; top: 10px; left: 0; width: 100%; text-align: center; color: white; font-family: sans-serif; z-index: 10; pointer-events: none;}
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background-color: #000; 
+            font-family: Arial, sans-serif;
+        }
+        #status { 
+            position: absolute; 
+            top: 50%; 
+            left: 50%; 
+            transform: translate(-50%, -50%);
+            color: white; 
+            font-size: 18px; 
+            text-align: center;
+            z-index: 100;
+            background: rgba(0,0,0,0.8);
+            padding: 20px;
+            border-radius: 10px;
+        }
+        #startBtn {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 20px 40px;
+            font-size: 20px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            z-index: 101;
+        }
+        #startBtn:hover {
+            background: #45a049;
+        }
     </style>
 </head>
 <body>
-    <div id="overlay">Apunta la cámara al retrato</div>
+    <div id="status">Presiona el botón para iniciar</div>
+    <button id="startBtn"> Iniciar Cámara AR</button>
 
     <script>
-        const start = async () => {
-            // 1. Iniciar MindAR
-            const mindarThree = new window.MINDAR.IMAGE.MindARThree({
-                container: document.body,
-                imageTargetSrc: './targets.mind', // Aquí llama al Target
-                uiScanning: '#overlay',
-            });
+        const statusDiv = document.getElementById('status');
+        const startBtn = document.getElementById('startBtn');
 
-            const { renderer, scene, camera } = mindarThree;
+        startBtn.addEventListener('click', async () => {
+            try {
+                statusDiv.textContent = 'Iniciando...';
+                startBtn.style.display = 'none';
 
-            // 2. Preparar el Video
-            const video = document.createElement('video');
-            video.src = './video-magico.mp4'; // Aquí llama a tu video
-            video.loop = true;
-            video.muted = true; // Necesario para que autoplay funcione en móviles
-            video.playsInline = true;
-            video.crossOrigin = "anonymous";
-            await video.play();
+                // Verificar que MindAR cargó
+                if (typeof window.MINDAR === 'undefined') {
+                    throw new Error('MindAR no se cargó. Revisa tu conexión a internet.');
+                }
+                statusDiv.textContent = '✓ MindAR cargado';
 
-            const texture = new THREE.VideoTexture(video);
-            const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: 0.9 });
-            
-            // Ajusta el tamaño del video (ancho, alto) según la forma de tu retrato
-            const geometry = new THREE.PlaneGeometry(1, 1.33); 
-            const plane = new THREE.Mesh(geometry, material);
-            plane.position.set(0, 0, 0);
+                // Crear instancia
+                const mindarThree = new window.MINDAR.IMAGE.MindARThree({
+                    container: document.body,
+                    imageTargetSrc: './targets.mind',
+                });
+                statusDiv.textContent = '✓ Instancia creada, cargando target...';
 
-            // 3. Unir el video al Target (posición 0)
-            const anchor = mindarThree.addAnchor(0);
-            anchor.group.add(plane);
+                // Cargar target
+                await mindarThree.compiler.loadImageTarget();
+                statusDiv.textContent = '✓ Target cargado, preparando video...';
 
-            // 4. Iniciar la cámara
-            await mindarThree.start();
-            renderer.setAnimationLoop(() => {
-                renderer.render(scene, camera);
-            });
-        };
+                const { renderer, scene, camera } = mindarThree;
 
-        window.addEventListener('load', start);
+                // Preparar video
+                const video = document.createElement('video');
+                video.src = './video-magico.mp4';
+                video.loop = true;
+                video.muted = true;
+                video.playsInline = true;
+                video.crossOrigin = "anonymous";
+                
+                await video.play();
+                statusDiv.textContent = '✓ Video listo, iniciando cámara...';
+
+                const texture = new THREE.VideoTexture(video);
+                const material = new THREE.MeshBasicMaterial({ 
+                    map: texture, 
+                    transparent: true, 
+                    opacity: 0.9 
+                });
+                
+                const geometry = new THREE.PlaneGeometry(1, 1.33);
+                const plane = new THREE.Mesh(geometry, material);
+
+                const anchor = mindarThree.addAnchor(0);
+                anchor.group.add(plane);
+
+                // Iniciar cámara
+                await mindarThree.start();
+                statusDiv.style.display = 'none';
+
+                renderer.setAnimationLoop(() => {
+                    renderer.render(scene, camera);
+                });
+
+                // Eventos
+                mindarThree.onTargetFound = () => {
+                    console.log('Target encontrado');
+                };
+
+                mindarThree.onTargetLost = () => {
+                    console.log('Target perdido');
+                };
+
+            } catch (error) {
+                console.error('Error:', error);
+                statusDiv.innerHTML = `
+                    <div style="color: #ff6b6b;">❌ Error</div>
+                    <div style="font-size: 14px; margin-top: 10px;">
+                        ${error.message}
+                    </div>
+                    <div style="font-size: 12px; margin-top: 15px; color: #aaa;">
+                        Verifica:<br>
+                        • Los 3 archivos están en la misma carpeta<br>
+                        • Los nombres son exactos<br>
+                        • Estás usando HTTPS
+                    </div>
+                `;
+                startBtn.style.display = 'block';
+                startBtn.textContent = '🔄 Reintentar';
+            }
+        });
     </script>
 </body>
 </html>
