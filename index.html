@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retrato Mágico - Pakan</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain; /* Ajusta el video sin cortarlo */
+        }
+        #playBtn {
+            position: absolute;
+            padding: 15px 30px;
+            font-size: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            z-index: 10;
+            font-family: Arial, sans-serif;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Botón para iniciar (los navegadores requieren un clic para reproducir video) -->
+    <button id="playBtn">▶ Ver Retrato Mágico</button>
+
+    <!-- Tu video -->
+    <video id="miVideo" loop playsinline>
+        <source src="video-magico.mp4" type="video/mp4">
+        Tu navegador no soporta videos.
+    </video>
+
+    <script>
+        const video = document.getElementById('miVideo');
+        const btn = document.getElementById('playBtn');
+
+        btn.addEventListener('click', () => {
+            video.play();
+            btn.style.display = 'none'; // Oculta el botón al reproducir
+        });
+
+        // Si el video termina, reinicia (por si acaso el loop falla)
+        video.addEventListener('ended', () => {
+            video.currentTime = 0;
+            video.play();
+        });
+    </script>
+
+</body>
+</html>
