@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>Retrato AR - Pakan</title>
   
-  <!-- Three.js para 3D -->
+  <!-- Three.js -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.min.js"></script>
   
-  <!-- MindAR para reconocimiento de imagen -->
+  <!-- MindAR -->
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image-three.prod.js"></script>
   
   <style>
@@ -30,28 +30,13 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      font-size: 24px;
+      font-size: 20px;
       z-index: 1000;
+      text-align: center;
+      padding: 20px;
     }
     
     #loading.hidden {
-      display: none;
-    }
-    
-    #instructions {
-      position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0, 0, 0, 0.7);
-      color: #fff;
-      padding: 15px 25px;
-      border-radius: 10px;
-      text-align: center;
-      z-index: 100;
-    }
-    
-    #instructions.hidden {
       display: none;
     }
   </style>
@@ -59,32 +44,31 @@
 <body>
   <div id="loading">
     <div>Cargando experiencia AR...</div>
-    <div style="font-size: 16px; margin-top: 10px;">Por favor espera</div>
-  </div>
-  
-  <div id="instructions">
-    Apunta tu cámara al retrato
+    <div style="font-size: 14px; margin-top: 10px; color: #888;">Por favor espera</div>
   </div>
 
   <script>
     const startAR = async () => {
       try {
-        // Inicializar MindAR
-        const mindarThree = new window.MindAR.Image.MindARThree({
+        // Verificar que MindAR esté cargado
+        if (typeof window.MINDAR === 'undefined') {
+          throw new Error('MindAR no se cargó correctamente');
+        }
+
+        // Inicializar MindAR con la forma correcta
+        const mindarThree = new window.MINDAR.IMAGE.MindARThree({
           container: document.body,
           imageTargetSrc: 'retrato-target.mind',
           uiLoading: 'no',
           uiError: 'no',
-          filterMinCF: 0.001,
-          filterBeta: 10,
         });
 
-        // Cargar el target (el archivo .mind)
+        // Cargar el target
         await mindarThree.compiler.loadImageTarget();
 
         const { renderer, scene, camera } = mindarThree;
 
-        // Crear anchor para el retrato (target 0)
+        // Crear anchor
         const anchor = mindarThree.addAnchor(0);
 
         // Crear video
@@ -95,7 +79,7 @@
         video.playsInline = true;
         video.crossOrigin = "anonymous";
         
-        // Esperar a que el video esté listo
+        // Esperar a que el video cargue
         await new Promise((resolve) => {
           video.onloadeddata = resolve;
           video.load();
@@ -109,51 +93,49 @@
           opacity: 0.95
         });
         
-        // Geometría del plano (ajusta el tamaño según tu retrato)
-        // Si tu retrato es vertical, usa (1, 1.4)
-        // Si es horizontal, usa (1.4, 1)
+        // Geometría
         const videoGeometry = new THREE.PlaneGeometry(1, 1.4);
         const videoMesh = new THREE.Mesh(videoGeometry, videoMaterial);
-        videoMesh.position.set(0, 0, 0.01); // Ligeramente delante del retrato
+        videoMesh.position.set(0, 0, 0.01);
 
-        // Agregar el video al anchor
         anchor.group.add(videoMesh);
 
-        // Iniciar el tracking
+        // Iniciar
         await mindarThree.start();
         
-        // Ocultar el loading
+        // Ocultar loading
         document.getElementById('loading').classList.add('hidden');
 
-        // Loop de renderizado
+        // Loop
         renderer.setAnimationLoop(() => {
           renderer.render(scene, camera);
         });
 
-        // Cuando se encuentra el retrato
+        // Eventos
         mindarThree.onTargetFound = () => {
-          console.log('¡Retrato detectado!');
+          console.log('Retrato detectado');
           video.play();
-          document.getElementById('instructions').classList.add('hidden');
         };
 
-        // Cuando se pierde el retrato
         mindarThree.onTargetLost = () => {
           console.log('Retrato perdido');
           video.pause();
-          document.getElementById('instructions').classList.remove('hidden');
         };
 
       } catch (error) {
-        console.error('Error iniciando AR:', error);
+        console.error('Error completo:', error);
         document.getElementById('loading').innerHTML = `
-          <div>Error al cargar la experiencia AR</div>
-          <div style="font-size: 14px; margin-top: 10px;">${error.message}</div>
+          <div style="color: #ff6b6b;">Error al cargar AR</div>
+          <div style="font-size: 14px; margin-top: 10px; color: #888;">
+            ${error.message}
+          </div>
+          <div style="font-size: 12px; margin-top: 20px; color: #666;">
+            Verifica que los archivos estén subidos correctamente
+          </div>
         `;
       }
     };
 
-    // Iniciar cuando la página cargue
     window.addEventListener('load', startAR);
   </script>
 </body>
