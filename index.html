@@ -5,76 +5,134 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
     <title>Retrato Mágico Pakan</title>
     
-    <!-- Three.js (Motor 3D) -->
-    <script src="https://unpkg.com/three@0.150.0/build/three.min.js"></script>
-    <!-- MindAR (Cerebro de Realidad Aumentada) -->
-    <script src="https://unpkg.com/mind-ar@1.2.5/dist/mindar-image-three.prod.js"></script>
+    <!-- Three.js -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.min.js"></script>
+    <!-- MindAR -->
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image-three.prod.js"></script>
     
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; font-family: Arial, sans-serif; }
-        #status { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 18px; text-align: center; z-index: 100; background: rgba(0,0,0,0.8); padding: 20px; border-radius: 10px; width: 80%; }
-        #startBtn { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 20px 40px; font-size: 20px; background: #4CAF50; color: white; border: none; border-radius: 10px; cursor: pointer; z-index: 101; }
+        #status { 
+            position: absolute; 
+            top: 50%; 
+            left: 50%; 
+            transform: translate(-50%, -50%); 
+            color: white; 
+            font-size: 16px; 
+            text-align: center; 
+            z-index: 100; 
+            background: rgba(0,0,0,0.9); 
+            padding: 20px; 
+            border-radius: 10px; 
+            width: 85%;
+            max-width: 400px;
+        }
+        #startBtn { 
+            position: absolute; 
+            top: 60%; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            padding: 15px 30px; 
+            font-size: 18px; 
+            background: #4CAF50; 
+            color: white; 
+            border: none; 
+            border-radius: 10px; 
+            cursor: pointer; 
+            z-index: 101; 
+        }
+        .error { color: #ff6b6b; }
+        .success { color: #4CAF50; }
     </style>
 </head>
 <body>
-    <div id="status">Presiona el botón para iniciar</div>
-    <button id="startBtn">📷 Iniciar Cámara AR</button>
+    <div id="status">
+        <div>🔍 Verificando librerías...</div>
+        <div id="details" style="font-size: 12px; margin-top: 10px; color: #aaa;"></div>
+    </div>
+    <button id="startBtn" style="display: none;">📷 Iniciar Cámara AR</button>
 
     <script>
         const statusDiv = document.getElementById('status');
+        const detailsDiv = document.getElementById('details');
         const startBtn = document.getElementById('startBtn');
+
+        // Verificar librerías al cargar la página
+        window.addEventListener('load', () => {
+            let status = '';
+            
+            if (typeof THREE !== 'undefined') {
+                status += '✓ Three.js cargado<br>';
+            } else {
+                status += '<span class="error"> Three.js NO cargó</span><br>';
+            }
+            
+            if (typeof window.MINDAR !== 'undefined') {
+                status += '✓ MindAR cargado<br>';
+            } else {
+                status += '<span class="error">✗ MindAR NO cargó</span><br>';
+            }
+            
+            detailsDiv.innerHTML = status;
+            
+            // Si ambas librerías cargaron, mostrar botón
+            if (typeof THREE !== 'undefined' && typeof window.MINDAR !== 'undefined') {
+                statusDiv.innerHTML = '<div class="success">✓ Todo listo</div><div style="font-size: 14px; margin-top: 10px;">Presiona el botón para iniciar</div>';
+                startBtn.style.display = 'block';
+            } else {
+                statusDiv.innerHTML = `
+                    <div class="error">❌ Las librerías no cargaron</div>
+                    <div style="font-size: 12px; margin-top: 10px;">
+                        ${status}
+                    </div>
+                    <div style="font-size: 11px; margin-top: 15px; color: #888;">
+                        Posibles causas:<br>
+                        • Bloqueador de anuncios<br>
+                        • Problema de red<br>
+                        • Servidor CDN caído
+                    </div>
+                `;
+            }
+        });
 
         startBtn.addEventListener('click', async () => {
             try {
-                statusDiv.textContent = 'Iniciando...';
+                statusDiv.innerHTML = '<div>Iniciando cámara...</div>';
                 startBtn.style.display = 'none';
 
-                // Verificar que las librerías cargaron
-                if (typeof THREE === 'undefined') {
-                    throw new Error('Three.js no se cargó.');
-                }
-                if (typeof window.MINDAR === 'undefined') {
-                    throw new Error('MindAR no se cargó.');
-                }
-                statusDiv.textContent = '✓ Librerías listas. Cargando target...';
-
-                // 1. Iniciar MindAR
                 const mindarThree = new window.MINDAR.IMAGE.MindARThree({
                     container: document.body,
                     imageTargetSrc: './targets.mind',
                 });
 
-                // 2. Cargar target
+                statusDiv.innerHTML = '<div>Cargando target...</div>';
                 await mindarThree.compiler.loadImageTarget();
-                statusDiv.textContent = '✓ Target listo. Preparando video...';
 
                 const { renderer, scene, camera } = mindarThree;
 
-                // 3. Preparar el Video
                 const video = document.createElement('video');
                 video.src = './video-magico.mp4';
                 video.loop = true;
-                video.muted = true; 
+                video.muted = true;
                 video.playsInline = true;
                 video.crossOrigin = "anonymous";
                 
-                // Intentar reproducir para desbloquear en móviles
                 await video.play();
-                video.pause(); 
+                video.pause();
                 video.currentTime = 0;
-                
-                statusDiv.textContent = '✓ Video listo. Abriendo cámara...';
 
                 const texture = new THREE.VideoTexture(video);
-                const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: 0.9 });
-                const geometry = new THREE.PlaneGeometry(1, 1.33); 
+                const material = new THREE.MeshBasicMaterial({ 
+                    map: texture, 
+                    transparent: true, 
+                    opacity: 0.9 
+                });
+                const geometry = new THREE.PlaneGeometry(1, 1.33);
                 const plane = new THREE.Mesh(geometry, material);
 
-                // 4. Unir el video al Target
                 const anchor = mindarThree.addAnchor(0);
                 anchor.group.add(plane);
 
-                // 5. Iniciar la cámara
                 await mindarThree.start();
                 statusDiv.style.display = 'none';
 
@@ -82,21 +140,15 @@
                     renderer.render(scene, camera);
                 });
 
-                // Reproducir cuando se encuentre el retrato
-                mindarThree.onTargetFound = () => {
-                    video.play();
-                };
-                mindarThree.onTargetLost = () => {
-                    video.pause();
-                };
+                mindarThree.onTargetFound = () => video.play();
+                mindarThree.onTargetLost = () => video.pause();
 
             } catch (error) {
                 console.error('Error:', error);
                 statusDiv.innerHTML = `
-                    <div style="color: #ff6b6b;">❌ Error</div>
-                    <div style="font-size: 14px; margin-top: 10px;">${error.message}</div>
-                    <div style="font-size: 12px; margin-top: 15px; color: #aaa;">
-                        Revisa que los archivos targets.mind y video-magico.mp4 estén en la misma carpeta que el index.html
+                    <div class="error">❌ Error: ${error.message}</div>
+                    <div style="font-size: 12px; margin-top: 10px; color: #aaa;">
+                        Detalles en consola (F12)
                     </div>
                 `;
                 startBtn.style.display = 'block';
